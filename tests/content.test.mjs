@@ -49,7 +49,10 @@ test("statutory numbers match the official documents", () => {
   assert.match(companySrc, /membershipNumber: "1069063"/);
   assert.match(companySrc, /postalCode: "12836"/);
   assert.match(companySrc, /shortCode: "REMB6228"/);
-  assert.match(companySrc, /email: "info@imranalasr\.sa"/);
+});
+
+test("operational contact email uses the requests mailbox", () => {
+  assert.match(companySrc, /email: "requests@imranalasr\.sa"/);
 });
 
 test("certificate registration numbers match the ISO certificates", () => {

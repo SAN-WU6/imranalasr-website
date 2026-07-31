@@ -42,8 +42,8 @@ export const company = {
     verifyUrl: "https://mybusiness.chamber.sa",
   },
   contact: {
-    /** source: ‎عن الشركة.pdf — البريد الإلكتروني */
-    email: "info@imranalasr.sa",
+    /** operational requests mailbox selected by the client */
+    email: "requests@imranalasr.sa",
     /** primary line + WhatsApp (provided by the client) */
     phonePrimary: "+966556630202",
     phonePrimaryDisplay: "0556630202",

@@ -290,7 +290,7 @@ const ar = {
       },
       {
         h: "التواصل",
-        p: "لأي استفسار يتعلق بالخصوصية، راسلنا على info@imranalasr.sa.",
+        p: "لأي استفسار يتعلق بالخصوصية، راسلنا على requests@imranalasr.sa.",
       },
     ],
   },
@@ -606,7 +606,7 @@ const en = {
         h: "Your rights",
         p: "You may request access to, correction of, or deletion of your data by writing to the company's official mailbox.",
       },
-      { h: "Contact", p: "For any privacy question, write to info@imranalasr.sa." },
+      { h: "Contact", p: "For any privacy question, write to requests@imranalasr.sa." },
     ],
   },
   admin: {

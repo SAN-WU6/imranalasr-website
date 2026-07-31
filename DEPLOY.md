@@ -104,7 +104,7 @@ cPanel ← **Setup Node.js App** ← **Create Application**:
 | `NEXT_PUBLIC_SITE_URL` | `https://imranalasr.sa` |
 | `AUTH_SECRET` | ولّده أنت ولا تشاركه: `openssl rand -base64 48` |
 | `SQLITE_PATH` | `./data/imran.db` |
-| `MAIL_TO` | `info@imranalasr.sa` |
+| `MAIL_TO` | `requests@imranalasr.sa` |
 | `RESEND_API_KEY` | اختياري — بدونه تُحفظ الطلبات وتظهر في لوحة الإدارة لكن دون إشعار بريدي |
 
 ### ⚠ إصدار Node وقاعدة البيانات

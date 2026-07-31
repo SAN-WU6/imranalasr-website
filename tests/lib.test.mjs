@@ -51,7 +51,7 @@ test("phone validation accepts real formats and rejects junk", () => {
 
 test("email validation", () => {
   const rule = { required: true, type: "email" };
-  assert.equal(validateField("info@imranalasr.sa", rule), null);
+  assert.equal(validateField("requests@imranalasr.sa", rule), null);
   assert.equal(validateField("a.b+c@sub.domain.com", rule), null);
   assert.equal(validateField("no-at-sign", rule), "email");
   assert.equal(validateField("missing@tld", rule), "email");

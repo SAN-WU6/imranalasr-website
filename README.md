@@ -40,7 +40,7 @@ npm start                # http://localhost:3000
 | `NEXT_PUBLIC_SITE_URL` | أصل الموقع (canonical/sitemap/OG) |
 | `DB_DRIVER` | `sqlite` (افتراضي) أو `supabase` |
 | `RESEND_API_KEY` | مفتاح Resend للبريد — اختياري؛ بدونه تُحفظ الطلبات وتظهر في اللوحة ويُسجَّل الإشعار في سجل الخادم بدل إرساله |
-| `MAIL_TO` | صندوق استقبال الإشعارات (الافتراضي info@imranalasr.sa) |
+| `MAIL_TO` | صندوق استقبال الإشعارات (الافتراضي requests@imranalasr.sa) |
 
 ## 3) قاعدة البيانات
 

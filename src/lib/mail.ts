@@ -12,7 +12,7 @@ type MailInput = { subject: string; html: string; text: string; replyTo?: string
 
 export async function sendMail({ subject, html, text, replyTo }: MailInput): Promise<{ sent: boolean; reason?: string }> {
   const key = process.env.RESEND_API_KEY;
-  const to = process.env.MAIL_TO || "info@imranalasr.sa";
+  const to = process.env.MAIL_TO || "requests@imranalasr.sa";
   const from = process.env.MAIL_FROM || "Imran Alasr Website <onboarding@resend.dev>";
 
   if (!key) {

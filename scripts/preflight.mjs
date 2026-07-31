@@ -48,7 +48,7 @@ if (driver === "supabase") {
 if (!process.env.RESEND_API_KEY) {
   warnings.push("RESEND_API_KEY is unset — submissions are still saved and shown in the admin panel, but no email notification is sent.");
 }
-if (!process.env.MAIL_TO) warnings.push("MAIL_TO is unset — notifications default to info@imranalasr.sa");
+if (!process.env.MAIL_TO) warnings.push("MAIL_TO is unset — notifications default to requests@imranalasr.sa");
 
 const nodeMajor = Number(process.versions.node.split(".")[0]);
 const nodeMinor = Number(process.versions.node.split(".")[1]);
