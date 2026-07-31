@@ -1,0 +1,19 @@
+# Placed at the application root as `.htaccess`.
+#
+# The application root sits inside public_html, so Apache can reach these files
+# directly, in parallel with Passenger. Everything here is meant to be served
+# BY the Node application, never handed out as a static file — the database,
+# the environment file and the server sources must not be fetchable over HTTP.
+#
+# This is a second line of defence. The first is to keep the application root
+# out of public_html entirely; see DEPLOY.md.
+
+Options -Indexes
+
+<FilesMatch "(?i)(^\.|\.(env|db|sqlite|sqlite3|mjs|ts|tsx|map|log|lock)$|^package(-lock)?\.json$|^server\.js$)">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set X-Robots-Tag "noindex, nofollow"
+</IfModule>

@@ -1,0 +1,167 @@
+-- =====================================================================
+--  Imran Alasr Alhaditha Contracting — Supabase / Postgres schema
+--
+--  Run once in the Supabase SQL editor when DB_DRIVER=supabase.
+--  Mirrors SQLITE_DDL in src/lib/db/schema.ts. Keep both in step.
+--
+--  Access model: every table has RLS enabled with NO policies. That means
+--  the anon and authenticated keys can read and write nothing. Only the
+--  service-role key — used exclusively on the server — bypasses RLS.
+--  This is deliberate: no lead data is ever reachable from a browser.
+-- =====================================================================
+
+create table if not exists public.quote_requests (
+  id                bigint generated always as identity primary key,
+  ref               text not null unique,
+  created_at        timestamptz not null default now(),
+  name              text not null,
+  company           text not null,
+  job_title         text,
+  phone             text not null,
+  email             text not null,
+  project_type      text not null,
+  project_location  text not null,
+  scope_of_work     text not null,
+  description       text not null,
+  start_window      text,
+  duration          text,
+  preferred_contact text not null,
+  locale            text not null default 'ar',
+  status            text not null default 'new',
+  notes             text not null default '',
+  ip_hash           text,
+  user_agent        text
+);
+create index if not exists idx_quote_created on public.quote_requests (created_at desc);
+create index if not exists idx_quote_status  on public.quote_requests (status);
+
+create table if not exists public.profile_requests (
+  id                  bigint generated always as identity primary key,
+  ref                 text not null unique,
+  created_at          timestamptz not null default now(),
+  name                text not null,
+  company             text not null,
+  job_title           text,
+  email               text not null,
+  phone               text not null,
+  reason              text not null,
+  related_opportunity text,
+  locale              text not null default 'ar',
+  status              text not null default 'new',
+  notes               text not null default '',
+  ip_hash             text
+);
+create index if not exists idx_profile_created on public.profile_requests (created_at desc);
+
+create table if not exists public.contact_messages (
+  id         bigint generated always as identity primary key,
+  ref        text not null unique,
+  created_at timestamptz not null default now(),
+  name       text not null,
+  company    text,
+  email      text not null,
+  phone      text,
+  subject    text not null,
+  message    text not null,
+  locale     text not null default 'ar',
+  status     text not null default 'new',
+  notes      text not null default '',
+  ip_hash    text
+);
+create index if not exists idx_message_created on public.contact_messages (created_at desc);
+
+create table if not exists public.admin_users (
+  id            bigint generated always as identity primary key,
+  email         text not null unique,
+  password_hash text not null,
+  created_at    timestamptz not null default now()
+);
+
+create table if not exists public.content_overrides (
+  key        text primary key,
+  value      jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.rate_limits (
+  bucket       text primary key,
+  window_start timestamptz not null default now(),
+  hits         integer not null default 0
+);
+
+create table if not exists public.audit_log (
+  id         bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  actor      text not null,
+  action     text not null,
+  target     text not null
+);
+
+create table if not exists public.projects (
+  slug text primary key check (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'),
+  display_order integer not null default 1 check (display_order > 0),
+  published boolean not null default false,
+  source_folder text not null default '',
+  title_ar text not null,
+  title_en text not null,
+  short_title_ar text not null,
+  short_title_en text not null,
+  location_ar text not null default '',
+  location_en text not null default '',
+  summary_ar text not null default '',
+  summary_en text not null default '',
+  documented_ar jsonb not null default '[]'::jsonb,
+  documented_en jsonb not null default '[]'::jsonb,
+  related_services jsonb not null default '[]'::jsonb,
+  seo_title_ar text not null default '',
+  seo_title_en text not null default '',
+  seo_description_ar text not null default '',
+  seo_description_en text not null default '',
+  cover_src text,
+  cover_portrait_src text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.project_images (
+  id bigint generated by default as identity primary key,
+  project_slug text not null references public.projects(slug) on delete cascade,
+  src text not null,
+  storage_path text,
+  width integer not null check (width > 0),
+  height integer not null check (height > 0),
+  blur text not null default '',
+  alt_ar text not null default '',
+  alt_en text not null default '',
+  display_order integer not null default 1 check (display_order > 0),
+  visible boolean not null default true,
+  created_at timestamptz not null default now(),
+  unique(project_slug, src)
+);
+create index if not exists project_images_project_order_idx
+  on public.project_images(project_slug, display_order);
+
+-- ---------------------------------------------------------------------
+-- Lock everything down. No policies = no browser access at all.
+-- ---------------------------------------------------------------------
+alter table public.quote_requests    enable row level security;
+alter table public.profile_requests  enable row level security;
+alter table public.contact_messages  enable row level security;
+alter table public.admin_users       enable row level security;
+alter table public.content_overrides enable row level security;
+alter table public.rate_limits       enable row level security;
+alter table public.audit_log         enable row level security;
+alter table public.projects          enable row level security;
+alter table public.project_images    enable row level security;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('project-images', 'project-images', true, 4194304,
+        array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update set public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+revoke all on public.quote_requests, public.profile_requests, public.contact_messages,
+              public.admin_users, public.content_overrides, public.rate_limits, public.audit_log,
+              public.projects, public.project_images
+  from anon, authenticated;
