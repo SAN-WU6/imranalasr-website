@@ -1,17 +1,42 @@
 import Link from "next/link";
-import { resolveCompany, resolveCredentials, resolveProjects, resolveServices } from "@/lib/content";
-import { saveCompanyAction, saveCredentialAction, saveServiceAction, seedProjectsAction } from "../../actions";
+import {
+  resolveCompany,
+  resolveCredentials,
+  resolveNotificationEmail,
+  resolveProjects,
+  resolveServices,
+} from "@/lib/content";
+import {
+  saveCompanyAction,
+  saveCredentialAction,
+  saveNotificationsAction,
+  saveServiceAction,
+  seedProjectsAction,
+} from "../../actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function ContentPage() {
-  const [projects, services, credentials, company] = await Promise.all([
+const MAIL_NOTICE: Record<string, { tone: "ok" | "error"; text: string }> = {
+  saved: { tone: "ok", text: "تم حفظ بريد استقبال الطلبات. ستصل الطلبات الجديدة إليه." },
+  cleared: { tone: "ok", text: "تم مسح البريد المخصص. عادت الطلبات إلى البريد المهيّأ في الاستضافة." },
+  invalid: { tone: "error", text: "صيغة البريد الإلكتروني غير صحيحة. لم يتم الحفظ." },
+};
+
+export default async function ContentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mail?: string }>;
+}) {
+  const [{ mail }, projects, services, credentials, company, notifications] = await Promise.all([
+    searchParams,
     resolveProjects(true),
     resolveServices(true),
     resolveCredentials(true),
     resolveCompany(),
+    resolveNotificationEmail(),
   ]);
   const cmsReady = projects.some((project) => "cms" in project);
+  const mailNotice = mail ? MAIL_NOTICE[mail] : undefined;
 
   return (
     <>
@@ -20,7 +45,10 @@ export default async function ContentPage() {
           <h1 className="a-title">المحتوى</h1>
           <p className="a-sub">النشر والترتيب والنصوص العربية والإنجليزية</p>
         </div>
-        <Link className="a-btn" href="/admin/content/projects/new">+ إضافة مشروع</Link>
+        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+          <Link className="a-btn a-btn-ghost" href="/admin/content/home">الصفحة الرئيسية</Link>
+          <Link className="a-btn" href="/admin/content/projects/new">+ إضافة مشروع</Link>
+        </div>
       </div>
 
       <p className="a-note">
@@ -255,6 +283,52 @@ export default async function ContentPage() {
             <div data-full="true">
               <button type="submit" className="a-btn">
                 حفظ بيانات التواصل
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      {/* ── Notification mailbox ─────────────────────────────────── */}
+      <section className="a-panel" id="notifications" style={{ scrollMarginTop: 24 }}>
+        <div className="a-panel-head">
+          <h2>بريد استقبال الطلبات</h2>
+          <span className="a-sub">إشعارات النماذج فقط — لا يظهر على الموقع</span>
+        </div>
+        <div className="a-panel-body">
+          <p className="a-note" style={{ marginBottom: 14 }}>
+            هذا هو البريد الذي تصل إليه إشعارات طلبات عرض السعر وطلبات ملف التأهيل ورسائل التواصل.
+            الطلبات تُحفظ في لوحة الإدارة في كل الأحوال حتى لو تعذّر إرسال البريد.
+            {notifications.source === "admin"
+              ? " المستخدم حالياً: القيمة المحفوظة هنا."
+              : notifications.source === "env"
+                ? " المستخدم حالياً: البريد المهيّأ في إعدادات الاستضافة."
+                : " المستخدم حالياً: البريد الافتراضي."}
+          </p>
+          {mailNotice && (
+            <p className={mailNotice.tone === "ok" ? "a-ok" : "a-error"} role="status" style={{ marginBottom: 14 }}>
+              {mailNotice.text}
+            </p>
+          )}
+          <form action={saveNotificationsAction} className="a-form-grid">
+            <div className="a-field" data-full="true">
+              <label htmlFor="mailTo">البريد المستقبِل للطلبات</label>
+              <input
+                id="mailTo"
+                className="a-input"
+                type="email"
+                name="mailTo"
+                dir="ltr"
+                placeholder={notifications.email}
+                defaultValue={notifications.source === "admin" ? notifications.email : ""}
+              />
+              <span className="a-hint">
+                اتركه فارغاً للعودة إلى البريد المهيّأ في الاستضافة ({notifications.source === "admin" ? "MAIL_TO" : notifications.email}).
+              </span>
+            </div>
+            <div data-full="true">
+              <button type="submit" className="a-btn">
+                حفظ بريد الاستقبال
               </button>
             </div>
           </form>

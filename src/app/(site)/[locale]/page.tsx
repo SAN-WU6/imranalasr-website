@@ -10,9 +10,8 @@ import { MaskLines } from "@/components/MaskLines";
 import Magnetic from "@/components/motion/Magnetic";
 import { getDictionary } from "@/i18n/dictionaries";
 import { href, isLocale, type Locale } from "@/i18n/config";
-import { resolveCredentials, resolveProjects, resolveServices } from "@/lib/content";
+import { resolveCredentials, resolveHome, resolveProjects, resolveServices } from "@/lib/content";
 import { totalRegisteredActivities } from "@/content/services";
-import { openingFigure } from "@/content/projects";
 import { notFound } from "next/navigation";
 
 export const revalidate = 300;
@@ -31,18 +30,26 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
   const regions = Array.from(new Set(projects.map((p) => p.location[locale])));
 
-  // The opening photograph is chosen by name, so it survives reordering. If the
-  // admin panel ever unpublishes that project, fall back to the first one's
-  // portrait rather than rendering an empty frame.
-  const figureProject = projects.find((p) => p.slug === openingFigure.slug) ?? projects[0];
-  const figure = figureProject?.gallery[openingFigure.galleryIndex] ?? figureProject?.coverPortrait;
+  // The opening photograph, the documented figures and the projects scene are
+  // all editable from the dashboard; each falls back to the delivered content.
+  const home = await resolveHome(projects);
+  const figureProject = home.figure?.project ?? projects[0];
+  const figure = home.figure?.image ?? figureProject?.coverPortrait;
 
-  const stats = [
-    { n: totalRegisteredActivities, label: t.home.stats.activities },
-    { n: 3, label: t.home.stats.isoSystems },
-    { n: projects.length, label: t.home.stats.projects },
-    { n: regions.length, label: t.home.stats.regions },
-  ];
+  const counted: Record<string, number> = {
+    activities: totalRegisteredActivities,
+    isoSystems: 3,
+    projects: projects.length,
+    regions: regions.length,
+  };
+  const stats = home.stats.items
+    .filter((item) => item.published)
+    .map((item) => ({
+      key: item.key,
+      n: item.value ?? counted[item.key],
+      label: item.label?.[locale]?.trim() || t.home.stats[item.key],
+    }));
+  const statsLabel = home.stats.label?.[locale]?.trim() || t.home.statsLabel;
 
   return (
     <>
@@ -80,7 +87,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               <span
                 data-parallax="-40"
                 className="intro-figure-inner"
-                style={{ "--figure-pos": openingFigure.position } as CSSProperties}
+                style={{ "--figure-pos": home.figure?.position ?? "50% 50%" } as CSSProperties}
               >
                 <Image
                   src={figure.src}
@@ -100,28 +107,32 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </div>
         </div>
 
-        <div className="page stats-strip" data-reveal-group="">
-          <p className="stats-label eyebrow" data-reveal="up">
-            {t.home.statsLabel}
-          </p>
-          <dl className="stats-row">
-            {stats.map((s) => (
-              <div key={s.label} className="stat" data-reveal="up">
-                <dt className="tabular stat-n">
-                  <span data-count={s.n}>0</span>
-                </dt>
-                <dd className="stat-label">{s.label}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
+        {/* Hiding every figure in the dashboard removes the strip rather than
+            leaving an empty rule across the page. */}
+        {stats.length > 0 && (
+          <div className="page stats-strip" data-reveal-group="">
+            <p className="stats-label eyebrow" data-reveal="up">
+              {statsLabel}
+            </p>
+            <dl className="stats-row">
+              {stats.map((s) => (
+                <div key={s.key} className="stat" data-reveal="up">
+                  <dt className="tabular stat-n">
+                    <span data-count={s.n}>0</span>
+                  </dt>
+                  <dd className="stat-label">{s.label}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
       </section>
 
       <VerseBand locale={locale} />
 
       <ServicesScene locale={locale} t={t} services={services} />
 
-      <ProjectsScene locale={locale} t={t} projects={projects} />
+      <ProjectsScene locale={locale} t={t} projects={projects} showcase={home.showcase} />
 
       {/* ── Credentials ────────────────────────────────────────────────── */}
       <section className="section quality-strip" data-surface="paper-deep" data-surface-section="light">

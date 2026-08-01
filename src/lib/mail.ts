@@ -8,11 +8,11 @@ import "server-only";
  * nothing is silently lost. `sendMail` never throws into the request path.
  */
 
-type MailInput = { subject: string; html: string; text: string; replyTo?: string };
+type MailInput = { subject: string; html: string; text: string; replyTo?: string; to?: string };
 
-export async function sendMail({ subject, html, text, replyTo }: MailInput): Promise<{ sent: boolean; reason?: string }> {
+export async function sendMail({ subject, html, text, replyTo, to: recipient }: MailInput): Promise<{ sent: boolean; reason?: string }> {
   const key = process.env.RESEND_API_KEY;
-  const to = process.env.MAIL_TO || "requests@imranalasr.sa";
+  const to = recipient?.trim() || process.env.MAIL_TO || "requests@imranalasr.sa";
   const from = process.env.MAIL_FROM || "Imran Alasr Website <onboarding@resend.dev>";
 
   if (!key) {

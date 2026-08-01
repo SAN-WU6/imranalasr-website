@@ -21,6 +21,13 @@ export type LocalizedText = { ar: string; en: string };
 
 export type ProjectImage = { src: string; w: number; h: number; blur: string; alt: LocalizedText };
 
+/**
+ * One photograph selected for the home projects scene. Flat and caption-free:
+ * the scene already holds the projects, so it looks the caption up by slug
+ * instead of shipping every project twice.
+ */
+export type ShowcaseTile = { src: string; w: number; h: number; blur: string; slug: string };
+
 export type Project = {
   slug: string;
   order: number;

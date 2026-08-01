@@ -171,3 +171,129 @@ test("CSV escapes quotes, commas, newlines and nulls", () => {
   assert.equal(header, "ref,note,empty");
   assert.equal(row, 'RFQ-1,"he said ""go"", then left\nnext line",');
 });
+
+/* ── mirrors the dashboard-editable home settings in src/lib/content.ts ── */
+const homeStatKeys = ["activities", "isoSystems", "projects", "regions"];
+
+function shapeHomeStats(o) {
+  const stored = new Map((o.items ?? []).map((item) => [item.key, item]));
+  const items = homeStatKeys
+    .map((key, i) => {
+      const s = stored.get(key);
+      const value = typeof s?.value === "number" && Number.isFinite(s.value) ? s.value : null;
+      const label = s?.label && (s.label.ar?.trim() || s.label.en?.trim()) ? s.label : null;
+      return {
+        key,
+        value,
+        label,
+        published: s?.published ?? true,
+        order: typeof s?.order === "number" && Number.isFinite(s.order) ? s.order : i + 1,
+      };
+    })
+    .sort((a, b) => a.order - b.order);
+  return { label: o.label && (o.label.ar?.trim() || o.label.en?.trim()) ? o.label : null, items };
+}
+
+test("documented figures fall back to the counted values until overridden", () => {
+  const empty = shapeHomeStats({});
+  assert.equal(empty.items.length, 4);
+  assert.ok(empty.items.every((item) => item.value === null && item.label === null && item.published));
+  assert.equal(empty.label, null);
+
+  // The form always submits all four rows, which is what a saved override looks like.
+  const edited = shapeHomeStats({
+    label: { ar: "أرقامنا", en: "Our figures" },
+    items: [
+      { key: "isoSystems", value: 4, label: { ar: "أنظمة", en: "systems" }, published: false, order: 1 },
+      { key: "activities", value: null, label: null, published: true, order: 2 },
+      { key: "projects", value: null, label: null, published: true, order: 3 },
+      { key: "regions", value: 7, label: null, published: true, order: 4 },
+    ],
+  });
+  assert.equal(edited.items[0].key, "isoSystems", "an explicit order moves the figure first");
+  assert.equal(edited.items[0].value, 4);
+  assert.equal(edited.items[0].published, false);
+  assert.equal(edited.items[1].value, null, "figures left blank stay automatic");
+  assert.equal(edited.items[3].value, 7);
+  assert.equal(edited.label.ar, "أرقامنا");
+});
+
+function shapeHomeShowcase(projects, o) {
+  const picks = Array.isArray(o.picks) ? o.picks : [];
+  if (!picks.length) return null;
+  const byProject = new Map();
+  for (const entry of picks) {
+    if (typeof entry !== "string") continue;
+    const at = entry.indexOf("::");
+    if (at < 1) continue;
+    const slug = entry.slice(0, at);
+    const src = entry.slice(at + 2);
+    const project = projects.find((p) => p.slug === slug);
+    if (!project) continue;
+    const image = project.gallery.find((g) => g.src === src);
+    if (!image) continue;
+    const list = byProject.get(slug) ?? [];
+    list.push({ ...image, slug });
+    byProject.set(slug, list);
+  }
+  const lists = [...byProject.values()];
+  const longest = lists.reduce((n, list) => Math.max(n, list.length), 0);
+  const out = [];
+  for (let k = 0; k < longest; k++) for (const list of lists) if (list[k]) out.push(list[k]);
+  return out.length ? out : null;
+}
+
+const showcaseProjects = [
+  { slug: "bisha", gallery: [{ src: "/b1.jpg" }, { src: "/b2.jpg" }] },
+  { slug: "jazan", gallery: [{ src: "/j1.jpg" }] },
+];
+
+test("the home projects scene interleaves the chosen photographs by project", () => {
+  const picked = shapeHomeShowcase(showcaseProjects, {
+    picks: ["bisha::/b1.jpg", "bisha::/b2.jpg", "jazan::/j1.jpg"],
+  });
+  assert.deepEqual(
+    picked.map((tile) => tile.src),
+    ["/b1.jpg", "/j1.jpg", "/b2.jpg"],
+    "neighbouring frames must come from different projects"
+  );
+});
+
+test("an empty or unusable selection leaves the scene automatic", () => {
+  assert.equal(shapeHomeShowcase(showcaseProjects, {}), null);
+  assert.equal(shapeHomeShowcase(showcaseProjects, { picks: [] }), null);
+  assert.equal(
+    shapeHomeShowcase(showcaseProjects, { picks: ["deleted::/x.jpg", "bisha::/gone.jpg", "malformed"] }),
+    null,
+    "photographs that no longer exist must not empty the scene"
+  );
+});
+
+/* ── mirrors the notification mailbox precedence ───────────────────── */
+function notificationEmail(override, env) {
+  const custom = override?.mailTo?.trim();
+  if (custom) return { email: custom, source: "admin" };
+  const fromEnv = env?.trim();
+  if (fromEnv) return { email: fromEnv, source: "env" };
+  return { email: "requests@imranalasr.sa", source: "default" };
+}
+
+test("the dashboard mailbox wins, and clearing it restores the deployment's", () => {
+  assert.deepEqual(notificationEmail({ mailTo: "sales@example.com" }, "ops@imranalasr.sa"), {
+    email: "sales@example.com",
+    source: "admin",
+  });
+  assert.deepEqual(notificationEmail({}, "ops@imranalasr.sa"), { email: "ops@imranalasr.sa", source: "env" });
+  assert.deepEqual(notificationEmail({ mailTo: "  " }, undefined), {
+    email: "requests@imranalasr.sa",
+    source: "default",
+  });
+});
+
+test("the opening figure's crop position accepts only two percentages", () => {
+  const ok = (raw) => /^\d{1,3}%\s+\d{1,3}%$/.test(raw.trim());
+  assert.ok(ok("50% 55%"));
+  assert.ok(ok("0% 100%"));
+  assert.ok(!ok("center top"));
+  assert.ok(!ok("50%;background:url(x)"));
+});

@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { audit, clearOverride, setOverride, updateRow, type TableName } from "@/lib/db";
 import { authenticate, endSession, requireAdmin, startSession } from "@/lib/auth";
+import { homeStatKeys } from "@/lib/content";
+import { validateField } from "@/lib/validation";
 import {
   createCmsProject,
   deleteCmsProject,
@@ -289,6 +291,81 @@ export async function saveCompanyAction(formData: FormData) {
   await setOverride("company:contact", override);
   await audit(actor, "content:company", "contact");
   revalidateContent();
+}
+
+/* ──────────────────────── home page presentation ─────────────────────── */
+
+export async function saveHomeFigureAction(formData: FormData) {
+  const actor = await requireAdmin();
+  const projectSlug = String(formData.get("projectSlug") ?? "").trim();
+  const src = String(formData.get("src") ?? "").trim();
+  const position = String(formData.get("position") ?? "").trim();
+  if (!projectSlug || !src) return;
+
+  await setOverride("home:figure", {
+    projectSlug,
+    src,
+    // Only two percentages are meaningful here; anything else is dropped so a
+    // stray value cannot break the layout.
+    position: /^\d{1,3}%\s+\d{1,3}%$/.test(position) ? position : "50% 50%",
+  });
+  await audit(actor, "content:home:figure", projectSlug);
+  revalidateContent();
+}
+
+export async function saveHomeStatsAction(formData: FormData) {
+  const actor = await requireAdmin();
+  const label = bilingual(formData, "statsLabel");
+  const items = homeStatKeys.map((key, i) => {
+    const raw = String(formData.get(`value_${key}`) ?? "").trim();
+    const parsed = Number(raw);
+    const order = Number(formData.get(`order_${key}`) ?? i + 1);
+    return {
+      key,
+      // Empty means "count it from the live content" — the safer default.
+      value: raw && Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : null,
+      label: bilingual(formData, `label_${key}`) ?? null,
+      published: formData.get(`published_${key}`) === "on",
+      order: Number.isFinite(order) ? Math.max(1, order) : i + 1,
+    };
+  });
+
+  await setOverride("home:stats", { ...(label ? { label } : {}), items });
+  await audit(actor, "content:home:stats", "stats");
+  revalidateContent();
+}
+
+export async function saveHomeShowcaseAction(formData: FormData) {
+  const actor = await requireAdmin();
+  const raw = String(formData.get("picks") ?? "[]");
+  let picks: string[] = [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) {
+      picks = parsed.filter((item): item is string => typeof item === "string" && item.includes("::")).slice(0, 120);
+    }
+  } catch {
+    return;
+  }
+  await setOverride("home:showcase", { picks });
+  await audit(actor, "content:home:showcase", String(picks.length));
+  revalidateContent();
+}
+
+/* ───────────────────────── notification mailbox ──────────────────────── */
+
+export async function saveNotificationsAction(formData: FormData) {
+  const actor = await requireAdmin();
+  const mailTo = String(formData.get("mailTo") ?? "").trim();
+
+  // Empty clears the setting and hands the mailbox back to the deployment.
+  if (mailTo && validateField(mailTo, { type: "email", max: 160 })) {
+    redirect("/admin/content?mail=invalid#notifications");
+  }
+  await setOverride("site:notifications", mailTo ? { mailTo } : {});
+  await audit(actor, "content:notifications", mailTo || "cleared");
+  revalidatePath("/admin/content");
+  redirect(`/admin/content?mail=${mailTo ? "saved" : "cleared"}#notifications`);
 }
 
 function revalidateContent() {

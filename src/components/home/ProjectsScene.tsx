@@ -8,7 +8,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import ProjectLink from "@/components/ProjectLink";
 import { href, type Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
-import type { Project } from "@/content/projects";
+import type { Project, ShowcaseTile } from "@/content/projects";
 
 /**
  * The projects sequence — the spine of the whole page.
@@ -86,10 +86,13 @@ export default function ProjectsScene({
   locale,
   t,
   projects,
+  showcase,
 }: {
   locale: Locale;
   t: Dictionary;
   projects: Project[];
+  /** Chosen in the dashboard; null means compose the scene automatically. */
+  showcase?: ShowcaseTile[] | null;
 }) {
   const root = useRef<HTMLElement>(null);
 
@@ -99,17 +102,25 @@ export default function ProjectsScene({
    * photograph still sits under the project it belongs to.
    */
   const tiles = useMemo(() => {
+    if (showcase?.length) {
+      // A curated selection arrives already interleaved and already checked
+      // against the published galleries.
+      return showcase.flatMap((tile) => {
+        const project = projects.find((p) => p.slug === tile.slug);
+        return project ? [{ img: { src: tile.src, w: tile.w, h: tile.h, blur: tile.blur }, project }] : [];
+      });
+    }
     const picks = projects.map((p) => {
       const g = p.gallery.length ? p.gallery : [p.cover];
       const step = Math.max(1, Math.floor(g.length / PER_PROJECT));
       return Array.from({ length: PER_PROJECT }, (_, k) => g[Math.min(g.length - 1, k * step)]);
     });
-    const out: { img: Project["gallery"][number]; project: Project }[] = [];
+    const out: { img: { src: string; w: number; h: number; blur: string }; project: Project }[] = [];
     for (let k = 0; k < PER_PROJECT; k++) {
       projects.forEach((p, pi) => out.push({ img: picks[pi][k], project: p }));
     }
     return out;
-  }, [projects]);
+  }, [projects, showcase]);
 
   const slots = useMemo(() => spiral(tiles.length), [tiles.length]);
 

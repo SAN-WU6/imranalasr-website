@@ -1,6 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { consumeRateLimit, insertRow, type TableName } from "@/lib/db";
+import { resolveNotificationEmail } from "@/lib/content";
 import { clientFingerprint } from "@/lib/request-context";
 import { renderNotification, sendMail } from "@/lib/mail";
 import { normalisePhone, validate, type Schema } from "@/lib/validation";
@@ -77,7 +78,10 @@ export async function handleSubmission({
 
   /* ── Notify ──────────────────────────────────────────────────────── */
   const { html, text } = renderNotification(subject, row.ref, rows(data));
-  void sendMail({ subject: `${subject} — ${row.ref}`, html, text, replyTo: data.email }).catch(() => undefined);
+  // The recipient is read per submission so a change in the dashboard takes
+  // effect immediately, without a redeploy.
+  const { email: to } = await resolveNotificationEmail();
+  void sendMail({ subject: `${subject} — ${row.ref}`, html, text, replyTo: data.email, to }).catch(() => undefined);
 
   return NextResponse.json({ ok: true, reference: row.ref });
 }
